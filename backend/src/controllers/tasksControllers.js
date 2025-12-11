@@ -50,3 +50,15 @@ export const getAllTasks = async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+export const createTask = async (req, res) => {
+  try {
+    const { title } = req.body;
+    const task = new Task({ title });
+
+    const newTask = await task.save();
+    res.status(201).json(newTask);
+  } catch (error) {
+    console.error("Lỗi khi gọi createTask", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};

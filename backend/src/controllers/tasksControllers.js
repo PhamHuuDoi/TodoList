@@ -86,3 +86,17 @@ export const updateTask = async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+export const deleteTask = async (req, res) => {
+  try {
+    const deleteTask = await Task.findByIdAndDelete(req.params.id);
+
+    if (!deleteTask) {
+      return res.status(404).json({ message: "Nhiệm vụ không tồn tại" });
+    }
+
+    res.status(200).json(deleteTask);
+  } catch (error) {
+    console.error("Lỗi khi gọi deleteTask", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};

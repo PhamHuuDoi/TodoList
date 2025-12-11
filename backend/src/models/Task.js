@@ -1,28 +1,42 @@
-import mongoose from"mongoose";
+import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
-    {
-        title: {
-            type: String ,
-            required:true,
-            trim:true,
-        },
-        status:{
-            type:String,
-            enum:["active", "complete"],
-            default:"active"
-         },
+  {
+    title: { 
+      type: String, 
+      required: true, 
+      trim: true 
+    },
 
-         completeAt:{
-            type:Date,
-            default:null
-        }
-        },
-        {
-            timestamps:true,
-        }
-    
+    description: {
+      type: String,
+      default: ""
+    },
+
+    startDate: {
+      type: Date,
+      default: null
+    },
+
+    endDate: {
+      type: Date,
+      default: null
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "in-progress", "completed", "overdue"],
+      default: "pending",
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    }
+  },
+  {
+    timestamps: true, 
+  }
 );
 
-const Task = mongoose.model("Task", taskSchema);
-export default Task;
+export default mongoose.model("Task", taskSchema);

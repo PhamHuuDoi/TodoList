@@ -62,3 +62,27 @@ export const createTask = async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+
+export const updateTask = async (req, res) => {
+  try {
+    const { title, status, completedAt } = req.body;
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      {
+        title,
+        status,
+        completedAt,
+      },
+      { new: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Nhiệm vụ không tồn tại" });
+    }
+
+    res.status(200).json(updatedTask);
+  } catch (error) {
+    console.error("Lỗi khi gọi updateTask", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};

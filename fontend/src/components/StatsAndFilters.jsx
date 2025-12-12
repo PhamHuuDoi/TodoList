@@ -1,50 +1,94 @@
-import React from "react";
-import { Badge } from "./ui/badge";
-import { FilterType } from "@/lib/data";
-import { Filter } from "lucide-react";
-import { Button } from "./ui/button";
+import React, { useEffect, useState } from "react";
+import api from "@/lib/axios";
+import { Card } from "./ui/card";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+} from "chart.js";
+import { Pie, Bar } from "react-chartjs-2";
 
-const StatsAndFilters = ({
-  completedTasksCount = 0,
-  activeTasksCount = 0,
-  filter = "all",
-  setFilter,
-}) => {
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement
+);
+
+const Stats = () => {
+  const [statusStats, setStatusStats] = useState({
+    pending: 0,
+    "in-progress": 0,
+    completed: 0,
+    overdue: 0,
+  });
+
+  const [dailyStats, setDailyStats] = useState([]);
+
+  const loadStats = async () => {
+    try {
+      const statusRes = await api.get("/tasks/stats/status");
+      const dailyRes = await api.get("/tasks/stats/day?days=7");
+
+      setStatusStats(statusRes.data);
+      setDailyStats(dailyRes.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+useEffect(() => {
+  const load = async () => {
+    await loadStats();
+  };
+
+  load();
+}, []);
+  const pieData = {
+    labels: ["Chờ xử lý", "Đang thực hiện", "Hoàn thành", "Quá hạn"],
+    datasets: [
+      {
+        data: [
+          statusStats.pending,
+          statusStats["in-progress"],
+          statusStats.completed,
+          statusStats.overdue,
+        ],
+        backgroundColor: ["#9e9e9e", "#1e88e5", "#43a047", "#e53935"],
+      },
+    ],
+  };
+
+  const barData = {
+    labels: dailyStats.map((d) => d.day),
+    datasets: [
+      {
+        label: "Số nhiệm vụ tạo",
+        data: dailyStats.map((d) => d.count),
+        backgroundColor: "#1e88e5",
+      },
+    ],
+  };
+
   return (
-    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-      {/* phần thống kê */}
-      <div className="flex gap-3">
-        <Badge
-          variant="secondary"
-          className="bg-white/50 text-accent-foreground border-info/20"
-        >
-          {activeTasksCount} {FilterType.active}
-        </Badge>
-        <Badge
-          variant="secondary"
-          className="bg-white/50 text-success border-success/20"
-        >
-          {completedTasksCount} {FilterType.completed}
-        </Badge>
-      </div>
+    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card className="p-6 shadow border-border/40">
+        <h2 className="font-semibold text-lg mb-4">Thống kê theo trạng thái</h2>
+        <Pie data={pieData} />
+      </Card>
 
-      {/* phần filter */}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        {Object.keys(FilterType).map((type) => (
-          <Button
-            key={type}
-            variant={filter === type ? "gradient" : "ghost"}
-            size="sm"
-            className="capitalize"
-            onClick={() => setFilter(type)}
-          >
-            <Filter className="size-4" />
-            {FilterType[type]}
-          </Button>
-        ))}
-      </div>
+      <Card className="p-6 shadow border-border/40">
+        <h2 className="font-semibold text-lg mb-4">Thống kê 7 ngày gần nhất</h2>
+        <Bar data={barData} />
+      </Card>
     </div>
   );
 };
 
-export default StatsAndFilters;
+export default Stats;

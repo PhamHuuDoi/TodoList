@@ -1,36 +1,22 @@
-import express from "express";
-import taskRoutes from "./routes/tasksRoutes.js";
-import { connectDB } from "./config/db.js";
-import dotenv from "dotenv";
-import cors from "cors";
-import path from "path";
-
-dotenv.config();
-console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI);
-const PORT = process.env.PORT || 5001;
-const __dirname = path.resolve();
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const taskRoutes = require('./routes/taskRoutes');
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
 
-if (process.env.NODE_ENV !== "production") {
-  app.use(cors({ origin: "http://localhost:5173" }));
-}
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/todoapp';
 
-app.use("/api/tasks", taskRoutes);
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+.then(() => console.log('MongoDB connected'))
+.catch(err => console.error('MongoDB connection error:', err));
 
+app.use('/api/tasks', taskRoutes);
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+app.get('/', (req, res) => res.send('Todo API is running'));
 
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
-  });
-}
-
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`server bắt đầu trên cổng ${PORT}`);
-  });
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

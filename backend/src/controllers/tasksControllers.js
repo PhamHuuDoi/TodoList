@@ -15,13 +15,19 @@ function applyOverdue(taskObj) {
 
 exports.getTasks = async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.status) filter.status = req.query.status;
-    const tasks = await Task.find(filter).sort({ createdAt: -1 });
-    const out = tasks.map(t => applyOverdue(t.toObject()));
-    res.json(out);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const tasks = await Task.find();
+    // AUTO UPDATE STATUS → overdue
+    const now = new Date();
+    for (const task of tasks) {
+      if (task.endDate && new Date(task.endDate) < now && task.status !== "completed") {
+        task.status = "overdue";
+        await task.save();
+      }
+    }
+
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -52,17 +58,21 @@ exports.createTask = async (req, res) => {
 };
 exports.updateTask = async (req, res) => {
   try {
-    const data = req.body;
-    if (data.startDate && data.endDate) {
-      if (new Date(data.endDate) < new Date(data.startDate)) {
-        return res.status(400).json({ error: 'endDate must be same or after startDate' });
-      }
+    const task = await Task.findById(req.params.id);
+
+    if (!task) return res.status(404).json({ message: "Không tìm thấy task" });
+
+    Object.assign(task, req.body);
+
+    const now = new Date();
+    if (task.endDate && new Date(task.endDate) < now && task.status !== "completed") {
+      task.status = "overdue";
     }
-    const updated = await Task.findByIdAndUpdate(req.params.id, data, { new: true });
-    if (!updated) return res.status(404).json({ message: 'Task not found' });
-    res.json(applyOverdue(updated.toObject()));
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+
+    await task.save();
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 exports.deleteTask = async (req, res) => {

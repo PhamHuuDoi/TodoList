@@ -116,8 +116,8 @@ const AddTask = ({ handleNewTaskAdded }) => {
             <option value="pending">Chờ xử lý</option>
             <option value="in-progress">Đang thực hiện</option>
             <option value="completed">Hoàn thành</option>
-            <option value="overdue">Quá hạn</option>
           </select>
+
         </div>
 
         {/* BUTTON */}

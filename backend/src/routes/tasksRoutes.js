@@ -1,16 +1,14 @@
-import express from "express";
-import { createTask, deleteTask, getAllTasks, updateTask } from "../controllers/tasksControllers.js";
+const express = require('express');
+const router = express.Router();
+const ctrl = require('../controllers/taskController');
 
-const router =express.Router();
+router.get('/', ctrl.getTasks);
+router.get('/:id', ctrl.getTask);
+router.post('/', ctrl.createTask);
+router.put('/:id', ctrl.updateTask);
+router.delete('/:id', ctrl.deleteTask);
 
-router.get("/",getAllTasks);
+router.get('/stats/status', ctrl.getStatsByStatus);
+router.get('/stats/daily', ctrl.getStatsByDay);
 
-router.post("/", createTask);
-
-router.put("/:id", updateTask);
-
-router.delete("/:id", deleteTask);
-
-
-export default router;
-
+module.exports = router;

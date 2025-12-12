@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import api from "@/lib/axios";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -12,46 +12,35 @@ const statusColors = {
   overdue: "bg-red-500",
 };
 
-const TaskList = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(false);
+const TaskList = ({ filteredTasks, handleTaskChanged }) => {
+  if (!filteredTasks.length) {
+    return (
+      <div className="text-gray-500 text-center py-4">
+        Không có nhiệm vụ nào.
+      </div>
+    );
+  }
 
-  const loadTasks = async () => {
-    setLoading(true);
+  //️⃣ Cập nhật trạng thái
+  const updateStatus = async (taskId, newStatus) => {
     try {
-      const res = await api.get("/tasks");
-      setTasks(res.data);
-    } catch (error) {
-      console.error(error);
-      toast.error("Không thể tải danh sách nhiệm vụ.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
-  const updateStatus = async (task, newStatus) => {
-    try {
-      await api.put(`/tasks/${task._id}`, { ...task, status: newStatus });
-
+      await api.put(`/tasks/${taskId}`, { status: newStatus });
       toast.success(`Đã cập nhật trạng thái thành "${newStatus}".`);
-      loadTasks();
+      handleTaskChanged();
     } catch (error) {
       console.error(error);
       toast.error("Không thể cập nhật trạng thái.");
     }
   };
 
+  //️⃣ Xóa task
   const deleteTask = async (id) => {
     if (!confirm("Bạn có chắc muốn xoá nhiệm vụ này?")) return;
 
     try {
       await api.delete(`/tasks/${id}`);
       toast.success("Đã xoá nhiệm vụ.");
-      loadTasks();
+      handleTaskChanged();
     } catch (error) {
       console.error(error);
       toast.error("Không thể xoá nhiệm vụ.");
@@ -60,15 +49,10 @@ const TaskList = () => {
 
   return (
     <div className="mt-6 space-y-4">
-      {loading && <div className="text-gray-500 text-center">Đang tải...</div>}
-
-      {!loading && tasks.length === 0 && (
-        <div className="text-gray-500 text-center">Không có nhiệm vụ nào.</div>
-      )}
-
-      {tasks.map((task) => (
+      {filteredTasks.map((task) => (
         <Card key={task._id} className="p-5 shadow-sm border-border/40">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
+            {/* LEFT: thông tin task */}
             <div className="flex-1 space-y-1">
               <h3 className="font-semibold text-lg">{task.title}</h3>
 
@@ -83,7 +67,7 @@ const TaskList = () => {
                 </span>
                 <span>
                   <strong>Kết thúc:</strong>{" "}
-                  {task.endDate ? task.endDate.slice(0, 10) : "-"}
+                  {task.dueDate ? task.dueDate.slice(0, 10) : "-"}
                 </span>
               </div>
 
@@ -94,12 +78,12 @@ const TaskList = () => {
               </span>
             </div>
 
+            {/* RIGHT: Chọn trạng thái + xóa */}
             <div className="flex flex-col justify-center gap-3">
-              {/* Select trạng thái */}
               <select
                 className="border px-3 py-2 rounded-md text-sm"
                 value={task.status}
-                onChange={(e) => updateStatus(task, e.target.value)}
+                onChange={(e) => updateStatus(task._id, e.target.value)}
               >
                 <option value="pending">Chờ xử lý</option>
                 <option value="in-progress">Đang thực hiện</option>
@@ -107,7 +91,6 @@ const TaskList = () => {
                 <option value="overdue">Quá hạn</option>
               </select>
 
-              {/* Nút xoá */}
               <Button
                 variant="destructive"
                 className="flex items-center gap-2"

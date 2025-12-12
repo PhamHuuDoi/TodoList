@@ -1,173 +1,176 @@
 import React, { useState } from "react";
-import { Card } from "./ui/card";
-import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
-import { Calendar, CheckCircle2, Circle, SquarePen, Trash2 } from "lucide-react";
-import { Input } from "./ui/input";
 import api from "@/lib/axios";
 import { toast } from "sonner";
+import { Pencil, Check, X, Calendar } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
 
-const TaskCard = ({ task, index, handleTaskChanged }) => {
-  const [isEditting, setIsEditting] = useState(false);
-  const [updateTaskTitle, setUpdateTaskTitle] = useState(task.title || "");
+const TaskCard = ({ task, handleTaskChanged }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({
+    title: task.title || "",
+    description: task.description || "",
+    startDate: (task.startDate || task.dueDate || task.start) ? (task.startDate || task.start || "").slice(0,10) : "",
+    endDate: (task.endDate || task.dueDate || task.end) ? (task.endDate || task.dueDate || task.end || "").slice(0,10) : "",
+    status: task.status || "pending",
+  });
+  const [saving, setSaving] = useState(false);
 
-  const deleteTask = async (taskId) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(s => ({ ...s, [name]: value }));
+  };
+
+  const save = async () => {
+    setSaving(true);
     try {
-      await api.delete(`/tasks/${taskId}`);
-      toast.success("Nhiệm vụ đã xoá.");
+      // Normalize payload: only send fields backend expects
+      const payload = {
+        title: form.title,
+        description: form.description,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+        status: form.status,
+      };
+      await api.put(`/tasks/${task._id}`, payload);
+      toast.success("Cập nhật nhiệm vụ thành công");
+      setIsEditing(false);
       handleTaskChanged();
-    } catch (error) {
-      console.error("Lỗi xảy ra khi xoá task.", error);
-      toast.error("Lỗi xảy ra khi xoá nhiệm vụ mới.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi lưu nhiệm vụ");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const updateTask = async () => {
-    try {
-      setIsEditting(false);
-      await api.put(`/tasks/${task._id}`, {
-        title: updateTaskTitle,
-      });
-      toast.success(`Nhiệm vụ đã đổi thành ${updateTaskTitle}`);
-      handleTaskChanged();
-    } catch (error) {
-      console.error("Lỗi xảy ra khi update task.", error);
-      toast.error("Lỗi xảy ra khi cập nhập nhiệm vụ.");
-    }
+  const cancel = () => {
+    setIsEditing(false);
+    setForm({
+      title: task.title || "",
+      description: task.description || "",
+      startDate: (task.startDate || task.start || "").slice(0,10) || "",
+      endDate: (task.endDate || task.dueDate || task.end || "").slice(0,10) || "",
+      status: task.status || "pending",
+    });
   };
 
-  const toggleTaskCompleteButton = async () => {
-    try {
-      if (task.status === "active") {
-        await api.put(`/tasks/${task._id}`, {
-          status: "complete",
-          completedAt: new Date().toISOString(),
-        });
-
-        toast.success(`${task.title} đã hoàn thành.`);
-      } else {
-        await api.put(`/tasks/${task._id}`, {
-          status: "active",
-          completedAt: null,
-        });
-        toast.success(`${task.title} đã đổi sang chưa hoàn thành.`);
-      }
-
-      handleTaskChanged();
-    } catch (error) {
-      console.error("Lỗi xảy ra khi update task.", error);
-      toast.error("Lỗi xảy ra khi cập nhập nhiệm vụ.");
-    }
-  };
-
-  const handleKeyPress = (event) => {
-    if (event.key === "Enter") {
-      updateTask();
-    }
+  // helper show date safely
+  const showDate = (t) => {
+    const d = t?.endDate ?? t?.dueDate ?? null;
+    return d ? (d.slice ? d.slice(0,10) : new Date(d).toISOString().slice(0,10)) : "-";
   };
 
   return (
-    <Card
-      className={cn(
-        "p-4 bg-gradient-card border-0 shadow-custom-md hover:shadow-custom-lg transition-all duration-200 animate-fade-in group",
-        task.status === "complete" && "opacity-75"
-      )}
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      <div className="flex items-center gap-4">
-        {/* nút tròn */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "flex-shrink-0 size-8 rounded-full transition-all duration-200",
-            task.status === "complete"
-              ? "text-success hover:text-success/80"
-              : "text-muted-foreground hover:text-primary"
-          )}
-          onClick={toggleTaskCompleteButton}
-        >
-          {task.status === "complete" ? (
-            <CheckCircle2 className="size-5" />
+    <Card className="p-5 shadow-sm border-border/40">
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex-1 space-y-2">
+          {!isEditing ? (
+            <>
+              <h3 className="font-semibold text-lg">{task.title}</h3>
+              {task.description && <p className="text-gray-600">{task.description}</p>}
+              <div className="text-sm text-gray-500 space-x-4">
+                <span><strong>Bắt đầu:</strong> { (task.startDate || task.start) ? (task.startDate || task.start).slice(0,10) : "-" }</span>
+                <span><strong>Kết thúc:</strong> { showDate(task) }</span>
+              </div>
+            </>
           ) : (
-            <Circle className="size-5" />
-          )}
-        </Button>
-
-        {/* hiển thị hoặc chỉnh sửa tiêu đề */}
-        <div className="flex-1 min-w-0">
-          {isEditting ? (
-            <Input
-              placeholder="Cần phải làm gì?"
-              className="flex-1 h-12 text-base border-border/50 focus:border-primary/50 focus:ring-primary/20"
-              type="text"
-              value={updateTaskTitle}
-              onChange={(e) => setUpdateTaskTitle(e.target.value)}
-              onKeyPress={handleKeyPress}
-              onBlur={() => {
-                setIsEditting(false);
-                setUpdateTaskTitle(task.title || "");
-              }}
-            />
-          ) : (
-            <p
-              className={cn(
-                "text-base transition-all duration-200",
-                task.status === "complete"
-                  ? "line-through text-muted-foreground"
-                  : "text-foreground"
-              )}
-            >
-              {task.title}
-            </p>
+            <div className="space-y-2">
+              <input
+                className="w-full border px-3 py-2 rounded"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+              />
+              <textarea
+                className="w-full border px-3 py-2 rounded"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-600">Bắt đầu</label>
+                  <input type="date" name="startDate" value={form.startDate} onChange={handleChange} className="w-full border px-2 py-2 rounded" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600">Kết thúc</label>
+                  <input type="date" name="endDate" value={form.endDate} onChange={handleChange} className="w-full border px-2 py-2 rounded" />
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* ngày tạo & ngày hoàn thành */}
-          <div className="flex items-center gap-2 mt-1">
-            <Calendar className="size-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {new Date(task.createdAt).toLocaleString()}
+          <div className="mt-2">
+            <span className={`inline-block px-3 py-1 rounded-full text-white text-xs ${ 
+              task.status === "pending" ? "bg-gray-400" :
+              task.status === "in-progress" ? "bg-blue-500" :
+              task.status === "completed" ? "bg-green-500" :
+              "bg-red-500"
+            }`}>
+              {task.status}
             </span>
-            {task.completedAt && (
-              <>
-                <span className="text-xs text-muted-foreground"> - </span>
-                <Calendar className="size-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {new Date(task.completedAt).toLocaleString()}
-                </span>
-              </>
-            )}
           </div>
         </div>
 
-        {/* nút chỉnh và xoá */}
-        <div className="hidden gap-2 group-hover:inline-flex animate-slide-up">
-          {/* nút edit */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex-shrink-0 transition-colors size-8 text-muted-foreground hover:text-info"
-            onClick={() => {
-              setIsEditting(true);
-              setUpdateTaskTitle(task.title || "");
-            }}
-          >
-            <SquarePen className="size-4" />
-          </Button>
+        <div className="flex flex-col justify-center gap-3 w-[170px]">
+          {!isEditing ? (
+            <>
+              <select
+                className="border px-3 py-2 rounded-md text-sm"
+                value={task.status}
+                onChange={async (e) => {
+                  try {
+                    await api.put(`/tasks/${task._id}`, { status: e.target.value });
+                    toast.success("Đã cập nhật trạng thái");
+                    handleTaskChanged();
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Không thể cập nhật trạng thái");
+                  }
+                }}
+              >
+                <option value="pending">Chờ xử lý</option>
+                <option value="in-progress">Đang thực hiện</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="overdue">Quá hạn</option>
+              </select>
 
-          {/* nút xoá */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex-shrink-0 transition-colors size-8 text-muted-foreground hover:text-destructive"
-            onClick={() => deleteTask(task._id)}
-          >
-            <Trash2 className="size-4" />
-          </Button>
+              <div className="flex gap-2">
+                <Button variant="default" onClick={() => setIsEditing(true)} className="flex-1">
+                  <Pencil className="w-4 h-4 mr-2" /> Chỉnh sửa
+                </Button>
+                <Button variant="destructive" onClick={async () => {
+                  if (!confirm("Bạn có chắc muốn xoá nhiệm vụ này?")) return;
+                  try {
+                    await api.delete(`/tasks/${task._id}`);
+                    toast.success("Đã xoá nhiệm vụ");
+                    handleTaskChanged();
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Không thể xoá nhiệm vụ");
+                  }
+                }}>
+                  <TrashIcon />
+                  Xoá
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="default" onClick={save} disabled={saving} className="flex-1">
+                <Check className="w-4 h-4 mr-2" /> Lưu
+              </Button>
+              <Button variant="ghost" onClick={cancel}><X className="w-4 h-4" /> Huỷ</Button>
+            </div>
+          )}
         </div>
       </div>
     </Card>
   );
 };
+
+// small placeholder for Trash icon if not imported
+const TrashIcon = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3z"/><path d="M8 9h1v9H8zM11 9h1v9h-1zM14 9h1v9h-1z"/></svg>;
 
 export default TaskCard;

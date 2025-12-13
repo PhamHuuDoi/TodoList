@@ -22,7 +22,7 @@ const HomePage = () => {
   const [dateQuery, setDateQuery] = useState("all");
   const [page, setPage] = useState(1);
 
-  // ===== THỐNG KÊ =====
+  // ===== STATS =====
   const [showStats, setShowStats] = useState(false);
   const [statsKey, setStatsKey] = useState(0);
 
@@ -127,7 +127,7 @@ const HomePage = () => {
           {/* ADD TASK */}
           <AddTask handleNewTaskAdded={handleTaskChanged} />
 
-          {/* ===== NÚT + BIỂU ĐỒ (CHỈ 1 CỤM) ===== */}
+          {/* ===== STATS TOGGLE ===== */}
           <div className="flex justify-end">
             <button
               className="px-4 py-2 rounded-md bg-primary text-white hover:opacity-90 transition"

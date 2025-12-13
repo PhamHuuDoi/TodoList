@@ -67,7 +67,16 @@ const createTask = async (req, res) => {
       }
     }
 
-    const task = new Task(data);
+  
+    const createdAt = data.startDate
+      ? new Date(data.startDate) // createdAt = startDate
+      : new Date();              // fallback nếu không có startDate
+
+    const task = new Task({
+      ...data,
+      createdAt,
+    });
+
     const saved = await task.save();
 
     const obj = saved.toObject();
@@ -78,6 +87,8 @@ const createTask = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+
 
 const updateTask = async (req, res) => {
   try {
@@ -112,7 +123,7 @@ const deleteTask = async (req, res) => {
   }
 };
 
-/* ===== STATS: 7 ngày gần nhất ===== */
+/* ===== STATS: 7 NGÀY GẦN NHẤT (FIXED) ===== */
 const getStatsByDay = async (req, res) => {
   try {
     const days = parseInt(req.query.days || "7", 10);
@@ -133,7 +144,10 @@ const getStatsByDay = async (req, res) => {
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$createdAt",
+            },
           },
           count: { $sum: 1 },
         },
@@ -149,10 +163,11 @@ const getStatsByDay = async (req, res) => {
     for (let i = 0; i < days; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
+
       const key = d.toISOString().slice(0, 10);
 
       result.push({
-        day: key,
+        day: d,                 // ✅ FIX: trả Date object
         count: map[key] || 0,
       });
     }

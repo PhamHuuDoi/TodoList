@@ -98,11 +98,11 @@ const StatsPanel = ({ refreshKey }) => {
           stats.overdue,
         ],
         backgroundColor: [
-          "#9ca3af", // pending
-          "#6366f1", // in-progress
-          "#f59e0b", // due-soon (cam)
-          "#22c55e", // completed
-          "#ef4444", // overdue
+          "#9ca3af",
+          "#6366f1",
+          "#f59e0b",
+          "#22c55e",
+          "#ef4444",
         ],
         borderWidth: 4,
         cutout: "70%",
@@ -110,18 +110,40 @@ const StatsPanel = ({ refreshKey }) => {
     ],
   };
 
-  // ===== BAR =====
+  // ===== BAR (FIXED) =====
+
+  // tạo danh sách 7 ngày gần nhất
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  // labels luôn đủ 7 ngày
+  const barLabels = last7Days.map((d) =>
+    d.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+    })
+  );
+
+  // data: ngày không có task => 0
+  const barCounts = last7Days.map((d) => {
+    const found = dailyStats.find((x) => {
+      const day = new Date(x.day);
+      day.setHours(0, 0, 0, 0);
+      return day.getTime() === d.getTime();
+    });
+    return found ? Number(found.count) : 0;
+  });
+
   const barData = {
-    labels: dailyStats.map((d) =>
-      new Date(d.day).toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-      })
-    ),
+    labels: barLabels,
     datasets: [
       {
         label: "Số nhiệm vụ tạo",
-        data: dailyStats.map((d) => d.count),
+        data: barCounts,
         backgroundColor: "#6366f1",
         borderRadius: 8,
         maxBarThickness: 32,

@@ -1,81 +1,117 @@
-const Task = require('../models/Task');
-function applyOverdue(taskObj) {
-  if (!taskObj) return taskObj;
-  try {
-    if (taskObj.status !== 'completed' && taskObj.endDate) {
-      const now = new Date();
-      if (new Date(taskObj.endDate) < now) {
-        taskObj.status = 'overdue';
-      }
-    }
-  } catch (e) {
-  }
-  return taskObj;
+import Task from '../models/Task.js';
+
+
+function normalizeDate(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
 }
 
-exports.getTasks = async (req, res) => {
-  try {
-    const tasks = await Task.find();
-    // AUTO UPDATE STATUS → overdue
-    const now = new Date();
-    for (const task of tasks) {
-      if (task.endDate && new Date(task.endDate) < now && task.status !== "completed") {
-        task.status = "overdue";
-        await task.save();
-      }
-    }
+function calculateStatus(task) {
+  if (!task.endDate) return task.status;
 
-    res.json(tasks);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  const today = normalizeDate(new Date());
+  const end = normalizeDate(task.endDate);
+
+  if (task.status !== 'completed' && end < today) {
+    return 'overdue';
+  }
+  return task.status;
+}
+
+
+const getTasks = async (req, res) => {
+  try {
+    const tasks = await Task.find().sort({ createdAt: -1 });
+
+    const result = tasks.map(t => {
+      const obj = t.toObject();
+      obj.status = calculateStatus(obj); // không lưu DB
+      return obj;
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi server' });
   }
 };
 
-exports.getTaskById = async (req, res) => {
+const getTaskById = async (req, res) => {
   try {
     const t = await Task.findById(req.params.id);
     if (!t) return res.status(404).json({ message: 'Task not found' });
-    res.json(applyOverdue(t.toObject()));
+
+    const obj = t.toObject();
+    obj.status = calculateStatus(obj);
+
+    res.json(obj);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-exports.createTask = async (req, res) => {
+const createTask = async (req, res) => {
   try {
     const data = req.body;
+
+    // không cho set overdue
+    if (data.status === 'overdue') {
+      return res.status(400).json({ error: 'Không thể set quá hạn thủ công' });
+    }
+
     if (data.startDate && data.endDate) {
       if (new Date(data.endDate) < new Date(data.startDate)) {
-        return res.status(400).json({ error: 'endDate must be same or after startDate' });
+        return res.status(400).json({ error: 'Ngày kết thúc phải sau ngày bắt đầu' });
       }
     }
+
     const t = new Task(data);
     const saved = await t.save();
-    res.status(201).json(saved);
+
+    const obj = saved.toObject();
+    obj.status = calculateStatus(obj);
+
+    res.status(201).json(obj);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
-exports.updateTask = async (req, res) => {
+
+const updateTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    if (!task) return res.status(404).json({ message: "Không tìm thấy task" });
-
-    Object.assign(task, req.body);
-
-    const now = new Date();
-    if (task.endDate && new Date(task.endDate) < now && task.status !== "completed") {
-      task.status = "overdue";
+    // chặn sửa task đã quá hạn
+    const today = normalizeDate(new Date());
+    if (
+      task.endDate &&
+      normalizeDate(task.endDate) < today &&
+      task.status !== 'completed'
+    ) {
+      return res.status(400).json({
+        error: 'Task đã quá hạn, không thể chỉnh sửa'
+      });
     }
 
+    // không cho set overdue
+    if (req.body.status === 'overdue') {
+      return res.status(400).json({ error: 'Không thể set quá hạn thủ công' });
+    }
+
+    Object.assign(task, req.body);
     await task.save();
-    res.json(task);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    const obj = task.toObject();
+    obj.status = calculateStatus(obj);
+
+    res.json(obj);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
-exports.deleteTask = async (req, res) => {
+
+const deleteTask = async (req, res) => {
   try {
     const deleted = await Task.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Task not found' });
@@ -84,59 +120,11 @@ exports.deleteTask = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-// stats by status
-exports.getStatsByStatus = async (req, res) => {
-  try {
-    const stats = await Task.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-    const map = { pending: 0, 'in-progress': 0, completed: 0, overdue: 0 };
-    stats.forEach(s => { map[s._id] = s.count; });
-    const now = new Date();
-    const candidates = await Task.find({ status: { $ne: 'completed' }, endDate: { $exists: true } });
-    candidates.forEach(t => {
-      if (t.endDate && new Date(t.endDate) < now) {
-        // if DB status already 'overdue' it's counted; otherwise adjust
-        if (t.status !== 'overdue') {
-          map['overdue'] = (map['overdue'] || 0) + 1;
-          map[t.status] = Math.max(0, (map[t.status] || 0) - 1);
-        }
-      }
-    });
 
-    res.json(map);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// stats by day (createdAt) for last N days (default 7)
-exports.getStatsByDay = async (req, res) => {
-  try {
-    const days = parseInt(req.query.days || '7', 10);
-    const start = new Date();
-    start.setHours(0,0,0,0);
-    start.setDate(start.getDate() - (days - 1));
-
-    const stats = await Task.aggregate([
-      { $match: { createdAt: { $gte: start } } },
-      { $project: { day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
-      { $group: { _id: '$day', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]);
-
-    const result = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date();
-      d.setHours(0,0,0,0);
-      d.setDate(d.getDate() - (days - 1 - i));
-      const key = d.toISOString().slice(0,10);
-      const found = stats.find(s => s._id === key);
-      result.push({ day: key, count: found ? found.count : 0 });
-    }
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+export default {
+  getTasks,
+  getTaskById,
+  createTask,
+  updateTask,
+  deleteTask
 };

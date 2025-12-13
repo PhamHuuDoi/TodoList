@@ -1,11 +1,12 @@
+import React, { useEffect, useState } from "react";
 import AddTask from "@/components/AddTask";
+import EditTaskModal from "@/components/EditTaskModal";
 import DateTimeFilter from "@/components/DateTimeFilter";
 import Footer from "@/components/Footer";
 import { Header } from "@/components/Header";
 import StatsAndFilters from "@/components/StatsAndFilters";
 import TaskList from "@/components/TaskList";
 import TaskListPagination from "@/components/TaskListPagination";
-import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import { visibleTaskLimit } from "@/lib/data";
@@ -18,31 +19,26 @@ const HomePage = () => {
   const [dateQuery, setDateQuery] = useState("all");
   const [page, setPage] = useState(1);
 
+  // state mở modal chỉnh sửa
+  const [editingTask, setEditingTask] = useState(null);
+
+  // ================= FETCH TASK =================
   const fetchTasks = async () => {
     try {
-      const res = await api.get(`/tasks`);
-      let tasks = Array.isArray(res.data) ? res.data : [];
-
-      const now = new Date();
-
-      tasks = tasks.map((t) => {
-        if (t.dueDate && t.status !== "completed") {
-          const d = new Date(t.dueDate);
-          if (d < now) t.status = "overdue";
-        }
-        return t;
-      });
+      const res = await api.get("/tasks");
+      const tasks = Array.isArray(res.data) ? res.data : [];
 
       setTaskBuffer(tasks);
 
-      setActiveTaskCount(tasks.filter(t =>
-        t.status === "pending" || t.status === "in-progress"
-      ).length);
+      setActiveTaskCount(
+        tasks.filter(
+          (t) => t.status === "pending" || t.status === "in-progress"
+        ).length
+      );
 
-      setCompleteTaskCount(tasks.filter(t =>
-        t.status === "completed"
-      ).length);
-
+      setCompleteTaskCount(
+        tasks.filter((t) => t.status === "completed").length
+      );
     } catch (error) {
       console.error("Lỗi truy xuất tasks:", error);
       toast.error("Không thể tải danh sách nhiệm vụ!");
@@ -62,6 +58,7 @@ const HomePage = () => {
     fetchTasks();
   };
 
+  // ================= FILTER =================
   const filteredTasks = taskBuffer.filter((task) => {
     switch (filter) {
       case "active":
@@ -75,7 +72,7 @@ const HomePage = () => {
     }
   });
 
-
+  // ================= PAGINATION =================
   const visibleTasks = filteredTasks.slice(
     (page - 1) * visibleTaskLimit,
     page * visibleTaskLimit
@@ -84,20 +81,25 @@ const HomePage = () => {
   const totalPages = Math.ceil(filteredTasks.length / visibleTaskLimit);
 
   const handleNext = () => {
-    if (page < totalPages) setPage(prev => prev + 1);
+    if (page < totalPages) setPage((prev) => prev + 1);
   };
 
   const handlePrev = () => {
-    if (page > 1) setPage(prev => prev - 1);
+    if (page > 1) setPage((prev) => prev - 1);
   };
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
   };
 
+  // ================= EDIT TASK =================
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#fefcff] relative">
-
+      {/* BACKGROUND */}
       <div
         className="absolute inset-0 z-0"
         style={{
@@ -110,7 +112,6 @@ const HomePage = () => {
 
       <div className="container relative z-10 pt-8 mx-auto">
         <div className="w-full max-w-2xl p-6 mx-auto space-y-6">
-
           <Header />
 
           <AddTask handleNewTaskAdded={handleTaskChanged} />
@@ -124,8 +125,8 @@ const HomePage = () => {
 
           <TaskList
             filteredTasks={visibleTasks}
-            filter={filter}
             handleTaskChanged={handleTaskChanged}
+            onEditTask={handleEditTask}
           />
 
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
@@ -147,9 +148,17 @@ const HomePage = () => {
             activeTasksCount={activeTaskCount}
             completedTasksCount={completeTaskCount}
           />
-
         </div>
       </div>
+
+      {/* MODAL CHỈNH SỬA */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onUpdated={handleTaskChanged}
+        />
+      )}
     </div>
   );
 };

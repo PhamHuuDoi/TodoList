@@ -1,12 +1,16 @@
+import api from "./axios";
 
-import axios from 'axios';
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/tasks';
+// lấy danh sách
+export const getTasks = () => api.get("/tasks");
 
-export const fetchTasks = () => axios.get(API).then(r => r.data);
-export const fetchTask = (id) => axios.get(`${API}/${id}`).then(r => r.data);
-export const createTask = (data) => axios.post(API, data).then(r => r.data);
-export const updateTask = (id, data) => axios.put(`${API}/${id}`, data).then(r => r.data);
-export const deleteTask = (id) => axios.delete(`${API}/${id}`).then(r => r.data);
+// tạo task
+export const createTask = (data) => api.post("/tasks", data);
 
-export const getStatsStatus = () => axios.get(`${API}/stats/status`).then(r => r.data);
-export const getStatsDaily = (days = 7) => axios.get(`${API}/stats/day?days=${days}`).then(r => r.data);
+// update task
+export const updateTask = (id, data) => api.put(`/tasks/${id}`, data);
+
+// xóa task
+export const deleteTask = (id) => api.delete(`/tasks/${id}`);
+
+// thống kê
+export const getStats = (days) => api.get(`/tasks/stats?days=${days}`);

@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
 
+export const getMe = async (req, res) => {
+  const user = await User.findById(req.userId).select("-password");
+  res.json(user);
+};
 /* ===== REGISTER ===== */
 export const register = async (req, res) => {
   const { username, email, password } = req.body;
@@ -32,10 +36,13 @@ export const login = async (req, res) => {
 
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax", //  CHẠY LOCALHOST
+    secure: false,
+    path: "/",
+    domain: "localhost", // localhost không HTTPS
     maxAge: 24 * 60 * 60 * 1000, // 24h
   });
-
+  console.log("SET COOKIE TOKEN:", token);
   res.json({
     message: "Đăng nhập thành công",
     user: {
@@ -48,35 +55,44 @@ export const login = async (req, res) => {
 
 /* ===== LOGOUT ===== */
 export const logout = (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+  });
   res.json({ message: "Đã đăng xuất" });
 };
 
 /* ===== FORGOT PASSWORD ===== */
 export const forgotPassword = async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
-  if (!user)
-    return res.json({ message: "Nếu email tồn tại, hệ thống sẽ gửi link" });
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user)
+      return res.json({ message: "Nếu email tồn tại, hệ thống sẽ gửi link" });
 
-  const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetToken = crypto.randomBytes(32).toString("hex");
 
-  user.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
-  user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
-  await user.save();
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    await user.save();
 
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
-  await sendEmail(
-    user.email,
-    "Reset mật khẩu",
-    `Bấm link để đổi mật khẩu: ${resetUrl}`
-  );
+    await sendEmail(
+      user.email,
+      "Reset mật khẩu",
+      `Bấm link để đổi mật khẩu: ${resetUrl}`
+    );
 
-  res.json({ message: "Đã gửi email reset" });
+    res.json({ message: "Đã gửi email reset" });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ message: "Không gửi được email" });
+  }
 };
 
 /* ===== RESET PASSWORD ===== */

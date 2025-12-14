@@ -3,11 +3,19 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import taskRoutes from "./routes/tasksRoutes.js";
+import authRoutes from "./routes/authRoute.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -19,6 +27,7 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 
 app.use("/api/tasks", taskRoutes);
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => res.send("Todo API is running"));
 

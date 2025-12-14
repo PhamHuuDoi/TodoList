@@ -12,7 +12,12 @@ const TaskSchema = new mongoose.Schema({
 
   startDate: Date,
   endDate: Date,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
 });
 
 export default mongoose.model('Task', TaskSchema);

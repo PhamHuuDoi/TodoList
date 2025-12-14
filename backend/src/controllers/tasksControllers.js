@@ -21,9 +21,13 @@ const calculateStatus = (task) => {
 };
 
 /* ===== CRUD ===== */
+
+// LẤY TASK RIÊNG THEO USER
 const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find().sort({ createdAt: -1 });
+    const tasks = await Task.find({ userId: req.userId }).sort({
+      createdAt: -1,
+    });
 
     const result = tasks.map((t) => {
       const obj = t.toObject();
@@ -37,9 +41,14 @@ const getTasks = async (req, res) => {
   }
 };
 
+//  LẤY 1 TASK CỦA USER
 const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     const obj = task.toObject();
@@ -51,6 +60,7 @@ const getTaskById = async (req, res) => {
   }
 };
 
+//  TẠO TASK GẮN USER
 const createTask = async (req, res) => {
   try {
     const data = req.body;
@@ -67,14 +77,12 @@ const createTask = async (req, res) => {
       }
     }
 
-  
-    const createdAt = data.startDate
-      ? new Date(data.startDate) // createdAt = startDate
-      : new Date();              // fallback nếu không có startDate
+    const createdAt = data.startDate ? new Date(data.startDate) : new Date();
 
     const task = new Task({
       ...data,
       createdAt,
+      userId: req.userId, // lay userId từ middleware bảo vệ
     });
 
     const saved = await task.save();
@@ -88,11 +96,14 @@ const createTask = async (req, res) => {
   }
 };
 
-
-
+//UPDATE TASK 
 const updateTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     if (req.body.status === "overdue") {
@@ -111,11 +122,15 @@ const updateTask = async (req, res) => {
   }
 };
 
+//  XÓA TASK CỦA USER
 const deleteTask = async (req, res) => {
   try {
-    const deleted = await Task.findByIdAndDelete(req.params.id);
-    if (!deleted)
-      return res.status(404).json({ message: "Task not found" });
+    const deleted = await Task.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!deleted) return res.status(404).json({ message: "Task not found" });
 
     res.json({ message: "Task deleted" });
   } catch (err) {
@@ -123,7 +138,7 @@ const deleteTask = async (req, res) => {
   }
 };
 
-/* ===== STATS: 7 NGÀY GẦN NHẤT (FIXED) ===== */
+/* ===== STATS THEO USER ===== */
 const getStatsByDay = async (req, res) => {
   try {
     const days = parseInt(req.query.days || "7", 10);
@@ -138,6 +153,7 @@ const getStatsByDay = async (req, res) => {
     const raw = await Task.aggregate([
       {
         $match: {
+          userId: req.userId,
           createdAt: { $gte: start, $lte: end },
         },
       },
@@ -167,7 +183,7 @@ const getStatsByDay = async (req, res) => {
       const key = d.toISOString().slice(0, 10);
 
       result.push({
-        day: d,                 // ✅ FIX: trả Date object
+        day: d,
         count: map[key] || 0,
       });
     }

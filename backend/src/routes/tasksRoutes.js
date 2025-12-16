@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/", taskController.getTasks);
-router.get("/stats/day", taskController.getStatsByDay);
+router.get("/:id", taskController.getTaskById);
 router.post("/", taskController.createTask);
 router.put("/:id", taskController.updateTask);
 router.delete("/:id", taskController.deleteTask);

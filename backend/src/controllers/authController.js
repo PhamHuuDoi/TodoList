@@ -36,7 +36,7 @@ export const login = async (req, res) => {
 
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "lax", //  CHẠY LOCALHOST
+    sameSite: "lax", 
     secure: false,
     path: "/",
     domain: "localhost", // localhost không HTTPS
@@ -66,10 +66,17 @@ export const logout = (req, res) => {
 /* ===== FORGOT PASSWORD ===== */
 export const forgotPassword = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user)
-      return res.json({ message: "Nếu email tồn tại, hệ thống sẽ gửi link" });
+    const { email } = req.body;
 
+    // 1. Kiểm tra email có tồn tại không
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "Không tìm thấy tài khoản đã đăng ký với email này",
+      });
+    }
+
+    // 2. Tạo reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
 
     user.resetPasswordToken = crypto
@@ -77,21 +84,29 @@ export const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 phút
     await user.save();
 
+    // 3. Tạo link reset
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
+    // 4. Gửi email
     await sendEmail(
       user.email,
       "Reset mật khẩu",
-      `Bấm link để đổi mật khẩu: ${resetUrl}`
+      `Bấm vào link sau để đổi mật khẩu (hiệu lực 15 phút):\n${resetUrl}`
     );
 
-    res.json({ message: "Đã gửi email reset" });
+    // 5. Phản hồi
+    res.json({
+      message:
+        "Hệ thống đã gửi đường dẫn reset mật khẩu qua email đăng ký của bạn",
+    });
   } catch (err) {
     console.error("Forgot password error:", err);
-    res.status(500).json({ message: "Không gửi được email" });
+    res.status(500).json({
+      message: "Không thể gửi email reset, vui lòng thử lại",
+    });
   }
 };
 

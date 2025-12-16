@@ -5,6 +5,8 @@ import { forgotPassword } from "../api/auth";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const submit = async (e) => {
     e.preventDefault();
@@ -12,11 +14,17 @@ export default function ForgotPassword() {
 
     try {
       setLoading(true);
-      await forgotPassword({ email });
-      alert("Nếu email tồn tại, hệ thống đã gửi link reset mật khẩu");
+      setError("");
+      setMessage("");
+
+      const res = await forgotPassword({ email });
+      setMessage(res.data.message || "Đã gửi link reset mật khẩu");
+
       setEmail("");
     } catch (err) {
-      alert("Có lỗi xảy ra, vui lòng thử lại");
+      setError(
+        err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại"
+      );
     } finally {
       setLoading(false);
     }
@@ -31,17 +39,20 @@ export default function ForgotPassword() {
           Nhập email bạn đã đăng ký. Chúng tôi sẽ gửi link đặt lại mật khẩu.
         </p>
 
+        {message && <div style={styles.success}>{message}</div>}
+        {error && <div style={styles.error}>{error}</div>}
+
         <input
           style={styles.input}
           type="email"
-          placeholder="Email"
+          placeholder="Email đăng ký"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
 
         <button style={styles.button} disabled={loading}>
-          {loading ? "Đang gửi..." : "Gửi link"}
+          {loading ? "Đang gửi..." : "Gửi link reset"}
         </button>
 
         <div style={styles.links}>
@@ -58,43 +69,65 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#f1f5f9",
+    background: "linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)",
   },
   form: {
-    width: "380px",
-    padding: "24px",
+    width: "400px",
+    padding: "28px",
     background: "#fff",
-    borderRadius: "8px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+    borderRadius: "12px",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.08)",
     display: "flex",
     flexDirection: "column",
     gap: "14px",
   },
   title: {
     textAlign: "center",
+    fontSize: "22px",
+    fontWeight: "700",
   },
   desc: {
-    fontSize: "13px",
+    fontSize: "14px",
     color: "#64748b",
     textAlign: "center",
+    marginBottom: "6px",
   },
   input: {
-    padding: "10px",
+    padding: "12px",
     fontSize: "14px",
-    borderRadius: "6px",
+    borderRadius: "8px",
     border: "1px solid #cbd5e1",
+    outline: "none",
   },
   button: {
-    padding: "10px",
-    borderRadius: "6px",
+    padding: "12px",
+    borderRadius: "8px",
     border: "none",
     background: "#2563eb",
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "600",
     cursor: "pointer",
+    transition: "0.2s",
   },
   links: {
     textAlign: "center",
     fontSize: "13px",
+    marginTop: "8px",
+  },
+  success: {
+    padding: "10px",
+    borderRadius: "6px",
+    background: "#dcfce7",
+    color: "#166534",
+    fontSize: "13px",
+    textAlign: "center",
+  },
+  error: {
+    padding: "10px",
+    borderRadius: "6px",
+    background: "#fee2e2",
+    color: "#991b1b",
+    fontSize: "13px",
+    textAlign: "center",
   },
 };
